@@ -1,0 +1,25 @@
+{
+  "srcFolder": "./src",
+  "fileExtensions": ["ts", "tsx", "js", "jsx"],
+  "packagesToTrack": [
+    "react-native",
+    "@react-navigation",
+    "expo",
+    "@expo/vector-icons"
+  ],
+  "priorityThresholds": {
+    "high": 10,
+    "medium": 5
+  },
+  "componentFilters": {
+    "include": [],
+    "exclude": []
+  },
+  "reportOptions": {
+    "generateHTML": true,
+    "generateJSON": true,
+    "includeMigrationTips": true,
+    "includeFileImpact": true,
+    "includePackageAnalysis": true
+  }
+}

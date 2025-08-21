@@ -1,0 +1,27 @@
+{
+  "components": [
+    "TextInput",
+    "Input",
+    "TextField",
+    "SearchInput"
+  ],
+  "packages": [
+    "react-native",
+    "@react-navigation",
+    "custom-package",
+    "ui-components"
+  ],
+  "props": [
+    {
+      "name": "maxLength",
+      "value": "1.5"
+    },
+    {
+      "name": "autoComplete",
+      "value": "off"
+    }
+  ],
+  "updateExisting": true,
+  "srcFolder": "./src",
+  "fileExtensions": [".ts", ".tsx", ".js", ".jsx"]
+}

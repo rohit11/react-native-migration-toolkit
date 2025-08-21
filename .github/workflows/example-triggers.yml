@@ -1,0 +1,193 @@
+# Example: Extended Component Analyzer Workflows
+# This file shows different trigger options you can add to your main workflow
+
+name: Component Analyzer - Extended Examples
+
+on:
+  # Manual trigger (always available)
+  workflow_dispatch:
+    inputs:
+      source_folder:
+        description: 'Source folder to analyze'
+        required: false
+        default: './src'
+        type: string
+      packages_to_track:
+        description: 'Packages to monitor'
+        required: false
+        default: 'react-native,@react-navigation'
+        type: string
+
+  # Scheduled runs (uncomment to enable)
+  # schedule:
+  #   - cron: '0 9 * * 1'    # Every Monday at 9 AM
+  #   - cron: '0 18 * * 5'   # Every Friday at 6 PM
+
+  # Run on every PR (uncomment to enable)
+  # pull_request:
+  #   branches: [ main, develop ]
+  #   paths:
+  #     - 'src/**'
+  #     - 'components/**'
+  #     - 'package.json'
+
+  # Run on releases (uncomment to enable)
+  # release:
+  #   types: [ published, created ]
+
+  # Run on push to main (uncomment to enable)
+  # push:
+  #   branches: [ main ]
+  #   paths:
+  #     - 'src/**'
+  #     - 'components/**'
+
+jobs:
+  analyze-components:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Run Component Analysis
+      id: analysis
+      run: |
+        echo "🔍 Starting Component Analysis..."
+        
+        # Use input values or defaults
+        SOURCE_FOLDER="${INPUT_SOURCE_FOLDER:-./src}"
+        PACKAGES="${INPUT_PACKAGES_TO_TRACK:-react-native,@react-navigation}"
+        
+        echo "Source folder: $SOURCE_FOLDER"
+        echo "Packages to track: $PACKAGES"
+        
+        # Run the analyzer
+        node component-analyzer.js --src "$SOURCE_FOLDER" 2>&1 | tee analysis-output.log
+        
+        # Extract summary for outputs
+        echo "::set-output name=summary::$(grep -A 10 '📊 Summary:' analysis-output.log | tail -n +2 | grep -E 'Files analyzed|Components found|Total usages|Packages tracked' | tr '\n' ' | ')"
+        echo "::set-output name=top-components::$(grep -A 5 '🏆 Top Components by Usage:' analysis-output.log | tail -n +2 | grep -E '^[0-9]+\.' | tr '\n' ' | ')"
+        
+    - name: Upload Reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: component-analysis-reports
+        path: |
+          component-migration-report-*.html
+          component-migration-report-*.json
+          analysis-output.log
+        retention-days: 30
+        
+    - name: Create Summary
+      run: |
+        echo "## 🔍 Component Analysis Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Summary" >> $GITHUB_STEP_SUMMARY
+        echo "${{ steps.analysis.outputs.summary }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🏆 Top Components" >> $GITHUB_STEP_SUMMARY
+        echo "${{ steps.analysis.outputs.top-components }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📄 Reports" >> $GITHUB_STEP_SUMMARY
+        echo "Download from workflow artifacts" >> $GITHUB_STEP_SUMMARY
+
+  # Example: Additional job for different analysis
+  analyze-specific-components:
+    runs-on: ubuntu-latest
+    needs: analyze-components
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Run Focused Analysis
+      run: |
+        echo "🔍 Running focused component analysis..."
+        
+        # Create custom config for specific analysis
+        cat > focused-config.json << EOF
+        {
+          "srcFolder": "./src",
+          "fileExtensions": ["ts", "tsx"],
+          "packagesToTrack": ["react-native"],
+          "priorityThresholds": {
+            "high": 5,
+            "medium": 2
+          },
+          "componentFilters": {
+            "include": ["Text", "View", "TextInput"],
+            "exclude": []
+          }
+        }
+        EOF
+        
+        # Run focused analysis
+        node component-analyzer.js --config focused-config.json --src ./src
+        
+    - name: Upload Focused Reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: focused-analysis-reports
+        path: |
+          component-migration-report-*.html
+          component-migration-report-*.json
+        retention-days: 30
+
+  # Example: Notification job
+  notify-team:
+    runs-on: ubuntu-latest
+    needs: analyze-components
+    if: always()  # Run even if analysis fails
+    
+    steps:
+    - name: Notify Team
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const status = '${{ needs.analyze-components.result }}';
+          const summary = '${{ needs.analyze-components.outputs.summary }}';
+          
+          if (status === 'success') {
+            console.log('✅ Analysis completed successfully');
+            console.log('Summary:', summary);
+            
+            // You can add Slack, email, or other notifications here
+            // Example: Send to Slack webhook
+            // await fetch(process.env.SLACK_WEBHOOK_URL, {
+            //   method: 'POST',
+            //   body: JSON.stringify({
+            //     text: `Component analysis completed: ${summary}`
+            //   })
+            // });
+            
+          } else {
+            console.log('❌ Analysis failed');
+            
+            // Send failure notification
+            // await fetch(process.env.SLACK_WEBHOOK_URL, {
+            //   method: 'POST',
+            //   body: JSON.stringify({
+            //     text: 'Component analysis failed - check workflow logs'
+            //   })
+            // });
+          }

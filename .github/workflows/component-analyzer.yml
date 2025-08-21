@@ -1,0 +1,192 @@
+name: Component Migration Analyzer
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_folder:
+        description: 'Source folder to analyze (relative to repo root)'
+        required: false
+        default: './src'
+        type: string
+      custom_config:
+        description: 'Custom config file path (optional)'
+        required: false
+        default: './analyzer-config.json'
+        type: string
+      packages_to_track:
+        description: 'Comma-separated packages to track (overrides config)'
+        required: false
+        default: 'react-native,@react-navigation,expo'
+        type: string
+      priority_thresholds:
+        description: 'Priority thresholds in format: high,medium (overrides config)'
+        required: false
+        default: '10,5'
+        type: string
+
+jobs:
+  analyze-components:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Create custom config if needed
+      run: |
+        if [ "${{ github.event.inputs.custom_config }}" != "./analyzer-config.json" ] || [ "${{ github.event.inputs.packages_to_track }}" != "react-native,@react-navigation,expo" ] || [ "${{ github.event.inputs.priority_thresholds }}" != "10,5" ]; then
+          echo "Creating custom config..."
+          cat > custom-analyzer-config.json << EOF
+        {
+          "srcFolder": "${{ github.event.inputs.source_folder }}",
+          "fileExtensions": ["ts", "tsx", "js", "jsx"],
+          "packagesToTrack": ["${{ github.event.inputs.packages_to_track }}"],
+          "priorityThresholds": {
+            "high": ${{ split(github.event.inputs.priority_thresholds, ',')[0] }},
+            "medium": ${{ split(github.event.inputs.priority_thresholds, ',')[1] }}
+          },
+          "componentFilters": {
+            "include": [],
+            "exclude": []
+          },
+          "reportOptions": {
+            "generateHTML": true,
+            "generateJSON": true,
+            "includeMigrationTips": true,
+            "includeFileImpact": true,
+            "includePackageAnalysis": true
+          }
+        }
+        EOF
+        fi
+        
+    - name: Run Component Analysis
+      id: analysis
+      run: |
+        echo "🔍 Starting Component Analysis..."
+        echo "Source folder: ${{ github.event.inputs.source_folder }}"
+        echo "Packages to track: ${{ github.event.inputs.packages_to_track }}"
+        echo "Priority thresholds: ${{ github.event.inputs.priority_thresholds }}"
+        echo ""
+        
+        # Run analyzer with custom config if provided
+        if [ "${{ github.event.inputs.custom_config }}" != "./analyzer-config.json" ] || [ "${{ github.event.inputs.packages_to_track }}" != "react-native,@react-navigation,expo" ] || [ "${{ github.event.inputs.priority_thresholds }}" != "10,5" ]; then
+          CONFIG_FILE="custom-analyzer-config.json"
+        else
+          CONFIG_FILE="./analyzer-config.json"
+        fi
+        
+        # Run the analyzer
+        node component-analyzer.js --config "$CONFIG_FILE" --src "${{ github.event.inputs.source_folder }}" 2>&1 | tee analysis-output.log
+        
+        # Extract summary information
+        echo "::set-output name=summary::$(grep -A 10 '📊 Summary:' analysis-output.log | tail -n +2 | grep -E 'Files analyzed|Components found|Total usages|Packages tracked' | tr '\n' ' | ')"
+        
+        # Extract top components
+        echo "::set-output name=top-components::$(grep -A 5 '🏆 Top Components by Usage:' analysis-output.log | tail -n +2 | grep -E '^[0-9]+\.' | tr '\n' ' | ')"
+        
+        # Find generated reports
+        HTML_REPORT=$(find . -name "component-migration-report-*.html" -type f | head -1)
+        JSON_REPORT=$(find . -name "component-migration-report-*.json" -type f | head -1)
+        
+        if [ -n "$HTML_REPORT" ]; then
+          echo "::set-output name=html-report::$HTML_REPORT"
+        fi
+        
+        if [ -n "$JSON_REPORT" ]; then
+          echo "::set-output name=json-report::$JSON_REPORT"
+        fi
+        
+    - name: Upload HTML Report
+      if: steps.analysis.outputs.html-report != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: component-migration-report-html
+        path: ${{ steps.analysis.outputs.html-report }}
+        retention-days: 30
+        
+    - name: Upload JSON Report
+      if: steps.analysis.outputs.json-report != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: component-migration-report-json
+        path: ${{ steps.analysis.outputs.json-report }}
+        retention-days: 30
+        
+    - name: Upload Analysis Log
+      uses: actions/upload-artifact@v4
+      with:
+        name: analysis-output-log
+        path: analysis-output.log
+        retention-days: 30
+        
+    - name: Create Summary Comment
+      run: |
+        echo "## 🔍 Component Migration Analysis Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Analysis Summary" >> $GITHUB_STEP_SUMMARY
+        echo "${{ steps.analysis.outputs.summary }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🏆 Top Components by Usage" >> $GITHUB_STEP_SUMMARY
+        echo "${{ steps.analysis.outputs.top-components }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📁 Source Folder" >> $GITHUB_STEP_SUMMARY
+        echo "`${{ github.event.inputs.source_folder }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Packages Tracked" >> $GITHUB_STEP_SUMMARY
+        echo "`${{ github.event.inputs.packages_to_track }}`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📄 Reports Generated" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.analysis.outputs.html-report }}" != "" ]; then
+          echo "- **HTML Report**: Available in artifacts" >> $GITHUB_STEP_SUMMARY
+        fi
+        if [ "${{ steps.analysis.outputs.json-report }}" != "" ]; then
+          echo "- **JSON Report**: Available in artifacts" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "- **Analysis Log**: Available in artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🚀 Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "1. Download the HTML report from artifacts for detailed analysis" >> $GITHUB_STEP_SUMMARY
+        echo "2. Review migration priorities based on usage patterns" >> $GITHUB_STEP_SUMMARY
+        echo "3. Plan custom component development roadmap" >> $GITHUB_STEP_SUMMARY
+        echo "4. Track migration progress over time" >> $GITHUB_STEP_SUMMARY
+        
+    - name: Comment on PR (if applicable)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const summary = `## 🔍 Component Migration Analysis Complete!
+          
+          ### 📊 Analysis Summary
+          ${process.env.SUMMARY || 'Analysis completed successfully'}
+          
+          ### 🏆 Top Components by Usage
+          ${process.env.TOP_COMPONENTS || 'See artifacts for detailed breakdown'}
+          
+          ### 📄 Reports Available
+          - **HTML Report**: Download from workflow artifacts
+          - **JSON Report**: Download from workflow artifacts
+          - **Analysis Log**: Download from workflow artifacts
+          
+          ### 🚀 Migration Planning
+          Review the HTML report to identify high-priority components for custom development.`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: summary
+          });
+      env:
+        SUMMARY: ${{ steps.analysis.outputs.summary }}
+        TOP_COMPONENTS: ${{ steps.analysis.outputs.top-components }}
