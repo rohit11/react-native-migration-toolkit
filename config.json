@@ -23,5 +23,5 @@
   ],
   "updateExisting": true,
   "srcFolder": "./src",
-  "fileExtensions": [".ts", ".tsx", ".js", ".jsx"]
+  "fileExtensions": ["ts", "tsx", "js", "jsx"]
 }

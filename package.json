@@ -8,16 +8,21 @@
     "analyze": "node component-analyzer.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["react-native", "typescript", "jsx", "props", "automation"],
+  "keywords": [
+    "react-native",
+    "typescript",
+    "jsx",
+    "props",
+    "automation"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@babel/generator": "^7.23.0",
     "@babel/parser": "^7.23.0",
     "@babel/traverse": "^7.23.0",
-    "@babel/generator": "^7.23.0",
     "@babel/types": "^7.23.0",
-    "glob": "^10.3.10",
-    "chalk": "^5.3.0"
-  },
-  "type": "module"
+    "chalk": "^4.1.2",
+    "glob": "^10.3.10"
+  }
 }

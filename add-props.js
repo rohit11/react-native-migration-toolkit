@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-import fs from 'fs';
-import path from 'path';
-import { glob } from 'glob';
-import chalk from 'chalk';
-import { parse } from '@babel/parser';
-import traverse from '@babel/traverse';
-import generate from '@babel/generator';
-import * as t from '@babel/types';
+const fs = require('fs');
+const path = require('path');
+const { glob } = require('glob');
+const chalk = require('chalk');
+const { parse } = require('@babel/parser');
+const traverse = require('@babel/traverse').default;
+const generate = require('@babel/generator').default;
+const t = require('@babel/types');
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -94,6 +94,11 @@ function isComponentFromTargetPackages(imports, componentName) {
  * Check if component should be processed
  */
 function shouldProcessComponent(componentName, imports) {
+  // Safety check for component name
+  if (!componentName || typeof componentName !== 'string') {
+    return false;
+  }
+  
   // Skip HTML elements
   if (HTML_ELEMENTS.has(componentName.toLowerCase())) {
     return false;
