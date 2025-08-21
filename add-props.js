@@ -118,8 +118,16 @@ function shouldProcessComponent(componentName, imports) {
  */
 function sortPropsAlphabetically(props) {
   return props.sort((a, b) => {
-    const nameA = a.key?.name || a.key?.value || '';
-    const nameB = b.key?.name || b.key?.value || '';
+    let nameA = '';
+    let nameB = '';
+    
+    if (a.type === 'JSXAttribute' && a.name) {
+      nameA = a.name.name || a.name.value || '';
+    }
+    if (b.type === 'JSXAttribute' && b.name) {
+      nameB = b.name.name || b.name.value || '';
+    }
+    
     return nameA.localeCompare(nameB);
   });
 }
@@ -129,8 +137,18 @@ function sortPropsAlphabetically(props) {
  */
 function hasProp(props, propName) {
   return props.some(prop => {
-    const key = prop.key?.name || prop.key?.value;
-    return key === propName;
+    // Handle JSXAttribute - use name property instead of key
+    let keyName = '';
+    
+    if (prop.type === 'JSXAttribute' && prop.name) {
+      if (prop.name.type === 'JSXIdentifier') {
+        keyName = prop.name.name;
+      } else if (prop.name.type === 'Literal') {
+        keyName = prop.name.value;
+      }
+    }
+    
+    return keyName === propName;
   });
 }
 
@@ -139,12 +157,19 @@ function hasProp(props, propName) {
  */
 function updatePropValue(props, propName, newValue) {
   const prop = props.find(p => {
-    const key = p.key?.name || p.key?.value;
-    return key === propName;
+    let keyName = '';
+    if (p.type === 'JSXAttribute' && p.name) {
+      if (p.name.type === 'JSXIdentifier') {
+        keyName = p.name.name;
+      } else if (p.name.type === 'Literal') {
+        keyName = p.name.value;
+      }
+    }
+    return keyName === propName;
   });
   
   if (prop) {
-    prop.value = t.stringLiteral(newValue);
+    prop.value = t.jsxExpressionContainer(t.stringLiteral(newValue));
     return true;
   }
   return false;
