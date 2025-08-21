@@ -21,5 +21,9 @@
     "includeMigrationTips": true,
     "includeFileImpact": true,
     "includePackageAnalysis": true
+  },
+  "github": {
+    "repository": "rohit11/react-native-migration-toolkit",
+    "branch": "main"
   }
 }

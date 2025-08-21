@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-import fs from 'fs';
-import path from 'path';
-import { glob } from 'glob';
-import chalk from 'chalk';
-import { parse } from '@babel/parser';
-import traverse from '@babel/traverse';
-import * as t from '@babel/types';
+const fs = require('fs');
+const path = require('path');
+const { glob } = require('glob');
+const chalk = require('chalk');
+const { parse } = require('@babel/parser');
+const traverse = require('@babel/traverse').default;
+const t = require('@babel/types');
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -98,12 +98,32 @@ function getPriorityColor(priority) {
 }
 
 /**
+ * Generate GitHub URL for file path
+ */
+function generateGitHubUrl(filePath, lineNumber = null) {
+  if (!config.github || !config.github.repository) {
+    return null;
+  }
+  
+  const relativePath = path.relative(process.cwd(), filePath);
+  const branch = config.github.branch || 'main';
+  
+  let url = `https://github.com/${config.github.repository}/blob/${branch}/${relativePath}`;
+  
+  if (lineNumber) {
+    url += `#L${lineNumber}`;
+  }
+  
+  return url;
+}
+
+/**
  * Analyze import statements
  */
 function analyzeImports(ast, filePath) {
   const fileImports = [];
   
-  traverse.default(ast, {
+  traverse(ast, {
     ImportDeclaration(importPath) {
       const source = importPath.node.source.value;
       
@@ -143,7 +163,7 @@ function analyzeImports(ast, filePath) {
 function analyzeJSXUsage(ast, filePath, fileImports) {
   const componentUsage = new Map();
   
-  traverse.default(ast, {
+  traverse(ast, {
     JSXElement(jsxPath) {
       if (!jsxPath || !jsxPath.node || !jsxPath.node.openingElement) return;
       
@@ -276,6 +296,8 @@ function generateHTMLReport() {
         .file-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #e9ecef; }
         .file-item:last-child { border-bottom: none; }
         .file-path { font-family: monospace; color: #6c757d; }
+        .file-path a { color: #007bff; text-decoration: none; }
+        .file-path a:hover { text-decoration: underline; }
         .file-usage { background: #e9ecef; color: #495057; padding: 3px 8px; border-radius: 12px; font-size: 12px; }
         .package-info { margin-top: 10px; font-size: 14px; color: #6c757d; }
         .package-tag { background: #e9ecef; color: #495057; padding: 3px 8px; border-radius: 12px; font-size: 12px; margin-right: 5px; }
@@ -344,12 +366,30 @@ function generateHTMLReport() {
                     </div>
                     
                     <div class="file-list">
-                        ${Array.from(component.files.entries()).map(([filePath, count]) => `
-                            <div class="file-item">
-                                <span class="file-path">${path.relative(process.cwd(), filePath)}</span>
-                                <span class="file-usage">${count} usage${count > 1 ? 's' : ''}</span>
-                            </div>
-                        `).join('')}
+                        ${Array.from(component.files.entries()).map(([filePath, count]) => {
+                            const relativePath = path.relative(process.cwd(), filePath);
+                            const githubUrl = generateGitHubUrl(filePath);
+                            
+                            if (githubUrl) {
+                                return `
+                                    <div class="file-item">
+                                        <span class="file-path">
+                                            <a href="${githubUrl}" target="_blank" style="color: #007bff; text-decoration: none;">
+                                                ${relativePath} 🔗
+                                            </a>
+                                        </span>
+                                        <span class="file-usage">${count} usage${count > 1 ? 's' : ''}</span>
+                                    </div>
+                                `;
+                            } else {
+                                return `
+                                    <div class="file-item">
+                                        <span class="file-path">${relativePath}</span>
+                                        <span class="file-usage">${count} usage${count > 1 ? 's' : ''}</span>
+                                    </div>
+                                `;
+                            }
+                        }).join('')}
                     </div>
                     
                     <div class="migration-tips">
@@ -373,12 +413,29 @@ function generateHTMLReport() {
             <h2>📁 File Impact Analysis</h2>
             <p>Files ordered by total component usage (most impacted first)</p>
             
-            ${sortedFiles.map(file => `
-                <div class="file-item">
-                    <span class="file-path">${file.relativePath}</span>
-                    <span class="file-usage">${file.totalUsages} component usage${file.totalUsages > 1 ? 's' : ''}</span>
-                </div>
-            `).join('')}
+            ${sortedFiles.map(file => {
+                const githubUrl = generateGitHubUrl(file.path);
+                
+                if (githubUrl) {
+                    return `
+                        <div class="file-item">
+                            <span class="file-path">
+                                <a href="${githubUrl}" target="_blank" style="color: #007bff; text-decoration: none;">
+                                    ${file.relativePath} 🔗
+                                </a>
+                            </span>
+                            <span class="file-usage">${file.totalUsages} component usage${file.totalUsages > 1 ? 's' : ''}</span>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="file-item">
+                            <span class="file-path">${file.relativePath}</span>
+                            <span class="file-usage">${file.totalUsages} component usage${file.totalUsages > 1 ? 's' : ''}</span>
+                        </div>
+                    `;
+                }
+            }).join('')}
         </div>
         
         <div class="section">

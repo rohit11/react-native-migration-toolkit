@@ -128,6 +128,7 @@ Edit `analyzer-config.json` to customize the analyzer behavior:
 | `priorityThresholds` | Usage count thresholds for priority levels | `{"high": 10, "medium": 5}` |
 | `componentFilters` | Include/exclude specific components | `{"include": [], "exclude": []}` |
 | `reportOptions` | Control report generation options | `{"generateHTML": true, "generateJSON": true}` |
+| `github` | GitHub repository configuration for clickable file links | `{"repository": "username/repo", "branch": "main"}` |
 
 ## Usage
 
@@ -351,6 +352,36 @@ The Component Analyzer generates detailed HTML and JSON reports with:
 - Migration priority recommendations
 - File impact assessment
 - Package dependency insights
+- **GitHub Integration**: Clickable file links that open directly in GitHub for all file findings
+
+## GitHub Integration
+
+### Configuration
+To enable clickable GitHub links in HTML reports, add GitHub configuration to `analyzer-config.json`:
+
+```json
+{
+  "github": {
+    "repository": "username/repository-name",
+    "branch": "main"
+  }
+}
+```
+
+### Features
+- **Clickable File Links**: File paths become clickable links in HTML reports
+- **Direct GitHub Navigation**: Click to open files directly in GitHub
+- **All File Findings**: Every file path gets a GitHub link
+- **Line Number Support**: Links include line numbers when available
+- **Branch Support**: Configurable branch for different environments
+
+### Example
+```
+Before: src/components/Button.tsx (line 15)
+After:  src/components/Button.tsx (line 15) 🔗 [Clickable]
+
+All file paths become clickable GitHub links!
+```
 
 ## Safety Features
 
