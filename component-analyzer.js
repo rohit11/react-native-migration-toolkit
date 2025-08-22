@@ -127,8 +127,8 @@ function analyzeImports(ast, filePath) {
     ImportDeclaration(importPath) {
       const source = importPath.node.source.value;
       
-      // Check if this package is in our tracking list
-      if (config.packagesToTrack.some(pkg => source.includes(pkg))) {
+      // Check if this package is in our tracking list (exact match)
+      if (config.packagesToTrack.some(pkg => source === pkg)) {
         const components = importPath.node.specifiers
           .filter(spec => spec.type === 'ImportSpecifier')
           .map(spec => spec.local.name);
@@ -168,6 +168,16 @@ function analyzeJSXUsage(ast, filePath, fileImports) {
       if (!jsxPath || !jsxPath.node || !jsxPath.node.openingElement) return;
       
       const componentName = jsxPath.node.openingElement.name.name;
+      
+      // Apply component filters (include/exclude)
+      if (config.componentFilters.include.length > 0 && 
+          !config.componentFilters.include.includes(componentName)) {
+        return; // Skip if not in include list
+      }
+      
+      if (config.componentFilters.exclude.includes(componentName)) {
+        return; // Skip if in exclude list
+      }
       
       // Check if this component is imported from tracked packages
       const isTrackedComponent = fileImports.some(imp => 

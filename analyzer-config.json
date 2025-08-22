@@ -3,7 +3,8 @@
   "fileExtensions": ["ts", "tsx", "js", "jsx"],
   "packagesToTrack": [
     "react-native",
-    "@react-navigation",
+    "@react-navigation/native",
+    "@react-navigation/stack",
     "expo",
     "@expo/vector-icons"
   ],
@@ -14,6 +15,10 @@
   "componentFilters": {
     "include": [],
     "exclude": []
+  },
+  "componentFiltersExamples": {
+    "include": ["Text", "View", "TextInput"],
+    "exclude": ["StatusBar", "SafeAreaView"]
   },
   "reportOptions": {
     "generateHTML": true,
